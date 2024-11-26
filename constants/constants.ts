@@ -11,8 +11,11 @@ import {
   Settings,
 } from "lucide-react"
 
+import { Wallet } from 'lucide-react';
+
 export const navLinks = [
-  { href: "/monitoring", label: "Monitoring", className: "text-foreground", icon: CircleDollarSign },
+  { href: "/monitoring", label: "Wallet", className: "text-foreground", icon: Wallet },
+  { href: "/market", label: "Buy & Sell", className: "text-foreground", icon: Wallet },
   /*{ href: "/config", label: "Configurações", className: "text-muted-foreground", icon: Settings },*/
 ];
 

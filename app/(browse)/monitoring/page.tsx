@@ -27,8 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-
-
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { app } from '@/firebase';
 
 interface Stock {
   symbol: string;
@@ -44,11 +44,21 @@ export default function Page() {
   const [alerts, setAlerts] = useState<{ symbol: string; message: string }[]>([]);
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [userMail, setUserMail] = useState("");
+  const [userId, setUserId] = useState<string>("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUserMail("inoachallenge@gmail.com");
-  }, []);
+    const auth = getAuth(app);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserMail(user.email || "");
+        setUserId(user.uid);
+      }
+      setLoading(false);
+    });
 
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const fetchStocks = () => {
@@ -101,7 +111,7 @@ export default function Page() {
             body: JSON.stringify({
               subject: 'Stock Alert',
               message: message,
-              recipient_list: ["inoachallenge@gmail.com"],
+              recipient_list: [userMail],
             }),
           })
             .then(response => {
@@ -130,7 +140,7 @@ export default function Page() {
     return () => {
       intervalIds.forEach(clearInterval);
     };
-  }, [stocks]);
+  }, [stocks, userMail]);
 
 
 
@@ -178,7 +188,7 @@ export default function Page() {
       <main className="flex-1 p-4 sm:p-6">
         <div className="grid gap-6">
 
-          <PortfolioOverview stocks={stocks} onDelete={handleDelete} onAddStock={handleAddStock} userMail={userMail} setUserMail={setUserMail} />
+          <PortfolioOverview stocks={stocks} onDelete={handleDelete} onAddStock={handleAddStock} userMail={userMail} setUserMail={setUserMail} userId={userId} />
         </div>
       </main>
     </div>
@@ -186,7 +196,7 @@ export default function Page() {
 }
 
 
-function PortfolioOverview({ stocks, onDelete, onAddStock, userMail, setUserMail }: { stocks: Stock[], onDelete: (symbol: string) => void, onAddStock: (symbol: string, lower: number, upper: number, frequency: number) => void, userMail: string, setUserMail: React.Dispatch<React.SetStateAction<string>> }) {
+function PortfolioOverview({ stocks, onDelete, onAddStock, userMail, setUserMail, userId }: { stocks: Stock[], onDelete: (symbol: string) => void, onAddStock: (symbol: string, lower: number, upper: number, frequency: number) => void, userMail: string, setUserMail: React.Dispatch<React.SetStateAction<string>>, userId: string }) {
   const [newStockSymbol, setNewStockSymbol] = useState("");
   const [newStockUpper, setNewStockUpper] = useState("");
   const [newStockLower, setNewStockLower] = useState("");
@@ -215,7 +225,7 @@ function PortfolioOverview({ stocks, onDelete, onAddStock, userMail, setUserMail
             </div>
           </div>
         </CardContent>*/}
-        <CardWithForm userMail={userMail} setUserMail={setUserMail}></CardWithForm>
+        <CardWithForm userMail={userMail} setUserMail={setUserMail} userId={userId}></CardWithForm>
       </Card>
 
       <Card>
@@ -373,9 +383,10 @@ function AssetRow({ label, value, frequency, lower, upper, onDelete }: { label: 
 interface CardWithForm {
   userMail: string;
   setUserMail: React.Dispatch<React.SetStateAction<string>>;
+  userId: string;
 }
 
-export function CardWithForm({ userMail, setUserMail }: CardWithForm) {
+export function CardWithForm({ userMail, setUserMail, userId }: CardWithForm) {
   const handleMailChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUserMail(event.target.value);
   };
@@ -385,29 +396,9 @@ export function CardWithForm({ userMail, setUserMail }: CardWithForm) {
       <CardHeader>
         <CardTitle>Personal Info</CardTitle>
         <CardDescription>E-mail access data.</CardDescription>
-        <CardDescription>Current receiver: {userMail}</CardDescription>
-        <CardDescription>Password: inoasistemas123</CardDescription>
+        <CardDescription>Current receiver: {userMail || "Loading..."}</CardDescription>
+        <CardDescription>User ID: {userId || "Loading..."}</CardDescription>
       </CardHeader>
-      {/*
-      <CardContent>
-        <form>
-          <div className="grid w-full items-center gap-4">
-            <div className="flex flex-col space-y-1.5">
-              <Label htmlFor="mail">User mail</Label>
-              <Input
-                id="mail"
-                type="email"
-                placeholder="E-mail"
-                value={userMail}
-                onChange={handleMailChange}
-              />
-            </div>
-          </div>
-        </form>
-      </CardContent>
-      <CardFooter className="flex justify-between">
-        <Button>Refresh</Button>
-      </CardFooter>*/}
     </Card>
   );
 }

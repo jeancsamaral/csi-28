@@ -37,8 +37,8 @@ import {
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
-import logobranca from "@/assets/images/inoa-logo-white.png"
-import logodark from "@/assets/images/inoa-logo.png"
+import logobranca from "@/assets/images/money-management.png"
+import logodark from "@/assets/images/money-management.png"
 import { ParagraphCN } from "./ParagraphCN"
 import brasil from "@/assets/brasil.png"
 import { useTheme } from "next-themes"
@@ -71,7 +71,7 @@ export default function Header() {
           <Link href="/" className="flex items-center gap-2 text-lg font-semibold md:text-base mr-4 justify-center">
             <Image src={theme === "dark" ? logobranca : logodark}
               alt="Atomize Logo"
-              className="h-10 w-20 mb-2" />
+              className="h-10 w-10 mb-2" />
             <span className="sr-only">Atomize LOGO</span>
           </Link>
           {otherLinks.map((link) => (
@@ -96,7 +96,7 @@ export default function Header() {
             <nav className="grid gap-6 text-lg font-medium">
               <Link href="#" className="flex items-center gap-2 text-lg font-semibold">
                 <Package2 className="h-6 w-6" />
-                <span className="sr-only">Atomize</span>
+                <span className="sr-only">Stock</span>
               </Link>
               {navLinks.map((link) => (
                 <Link key={link.label} href={link.href} className={`hover:text-foreground ${link.className} flex items-center gap-2`}>
