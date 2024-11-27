@@ -101,6 +101,8 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [monitoredStocks, setMonitoredStocks] = useState<Stock[]>([]);
+  const [quantities, setQuantities] = useState<{ [symbol: string]: number }>({});
+
   // const [quantity, setQuantity] = useState(0);
 
   // Firebase auth
@@ -412,6 +414,19 @@ export default function PortfolioPage() {
                             </span>
                           </div>
                         )}
+                        <div className="flex justify-between items-center mt-2">
+                          <span className="text-sm text-muted-foreground">Quantity</span>
+                          <Input
+                            type="number"
+                            min="1"
+                            className="w-24 text-right"
+                            value={quantities[quote.symbol] || 1}
+                            onChange={(e) => setQuantities({
+                              ...quantities,
+                              [quote.symbol]: Math.max(1, parseInt(e.target.value) || 1)
+                            })}
+                          />
+                          </div>
                       </div>
                     </CardContent>
                     
@@ -419,7 +434,7 @@ export default function PortfolioPage() {
                       <Button 
                         className="w-full bg-green-500 hover:bg-green-600 text-white"
                         variant="outline"
-                        onClick={() => placeOrder(quote.symbol, 'BUY', 1)}
+                        onClick={() => placeOrder(quote.symbol, 'BUY', quantities[quote.symbol] || 1)}
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         BUY
