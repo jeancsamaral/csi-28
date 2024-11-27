@@ -1,21 +1,18 @@
-import {
-  Activity,
-  Calendar,
-  Book,
-  List,
-  FileText,
-  User,
-  HelpCircle,
-  Cpu,
-  CircleDollarSign,
-  Settings,
-} from "lucide-react"
-
-import { Wallet, Brain, Banknote } from 'lucide-react';
+import { Banknote, Brain, Wallet } from "lucide-react";
 
 export const navLinks = [
-  { href: "/monitoring", label: "Wallet", className: "text-foreground", icon: Wallet },
-  { href: "/market", label: "Buy & Sell", className: "text-foreground", icon: Banknote },
+  {
+    href: "/monitoring",
+    label: "Wallet",
+    className: "text-foreground",
+    icon: Wallet,
+  },
+  {
+    href: "/market",
+    label: "Monitoring",
+    className: "text-foreground",
+    icon: Banknote,
+  },
   { href: "/guru", label: "Guru", className: "text-foreground", icon: Brain },
   /*{ href: "/config", label: "Configurações", className: "text-muted-foreground", icon: Settings },*/
 ];
@@ -49,5 +46,3 @@ export const caloriesData = [
   { date: "2024-01-06", calories: 456 },
   { date: "2024-01-07", calories: 345 },
 ];
-
-
