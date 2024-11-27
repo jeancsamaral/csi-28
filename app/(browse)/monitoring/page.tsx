@@ -177,7 +177,7 @@ export default function PortfolioPage() {
     setOrders(ordersData);
   };
 
-  const placeOrder = async (symbol: string, type: 'BUY' | 'SELL', quantity: number, price: number) => {
+  const placeOrder = async (symbol: string, type: 'BUY' | 'SELL', quantity: number) => {
     if (!userId) return;
     
     const db = getFirestore(app);
@@ -185,7 +185,7 @@ export default function PortfolioPage() {
       symbol,
       type,
       quantity,
-      price,
+      price: 0,
       status: 'PENDING',
       timestamp: new Date().toISOString()
     };
@@ -195,7 +195,7 @@ export default function PortfolioPage() {
       const orderRef = await addDoc(collection(db, 'users', userId, 'orders'), newOrder);
       
       // Update positions
-      const positionRef = collection(db, 'users', userId, 'positions');
+      const positionRef = collection(db, 'user', userId, 'positions');
       const positionQuery = query(positionRef, where('symbol', '==', symbol));
       const positionSnap = await getDocs(positionQuery);
 
@@ -204,11 +204,6 @@ export default function PortfolioPage() {
         await addDoc(positionRef, {
           symbol,
           quantity,
-          averagePrice: price,
-          currentPrice: price,
-          profitLoss: 0,
-          profitLossPercentage: 0,
-          lastUpdated: new Date().toISOString()
         });
       } else if (!positionSnap.empty) {
         // Update existing position
@@ -220,14 +215,12 @@ export default function PortfolioPage() {
           : currentPosition.quantity - quantity;
 
         if (newQuantity > 0) {
-          const newAveragePrice = type === 'BUY'
-            ? ((currentPosition.averagePrice * currentPosition.quantity) + (price * quantity)) / newQuantity
-            : currentPosition.averagePrice;
+          // const newAveragePrice = type === 'BUY'
+          //   ? ((currentPosition.averagePrice * currentPosition.quantity) + (price * quantity)) / newQuantity
+          //   : currentPosition.averagePrice;
 
           await updateDoc(positionDoc.ref, {
             quantity: newQuantity,
-            averagePrice: newAveragePrice,
-            lastUpdated: new Date().toISOString()
           });
         } else {
           // Close position if quantity becomes 0
@@ -424,7 +417,7 @@ export default function PortfolioPage() {
                       <Button 
                         className="w-full"
                         variant="outline"
-                        onClick={() => handleAddToMonitoring(quote)}
+                        onClick={() => placeOrder(quote.symbol, 'BUY', 1)}
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         Add to Monitoring
