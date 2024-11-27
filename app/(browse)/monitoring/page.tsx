@@ -124,20 +124,39 @@ export default function PortfolioPage() {
     // Load positions
     const positionsRef = collection(db, 'user', uid, 'positions');
     const positionsSnap = await getDocs(positionsRef);
-    const positionsData = positionsSnap.docs.map(doc => {
+    
+    // Get current prices for all symbols
+    const positionsData = await Promise.all(positionsSnap.docs.map(async (doc) => {
       const data = doc.data();
-      return {
-        id: doc.id,
-        symbol: data.symbol,
-        quantity: data.quantity,
-        averagePrice: data.averagePrice,
-        currentPrice: data.currentPrice,
-        totalValue: data.totalValue,
-        profitLoss: data.profitLoss,
-        profitLossPercentage: data.profitLossPercentage,
-        lastUpdated: data.lastUpdated
-      } as Position;
-    });
+      
+      // Fetch current price from Yahoo API
+      try {
+        const response = await fetch(`/api/yahoo?symbol=${data.symbol}`);
+        const quote = await response.json();
+        const currentPrice = quote.regularMarketPrice || 0;
+
+        return {
+          id: doc.id,
+          symbol: data.symbol,
+          quantity: data.quantity,
+          averagePrice: data.averagePrice,
+          currentPrice: currentPrice,
+          totalValue: currentPrice * data.quantity, // Calculate total value
+          profitLoss: data.profitLoss,
+          profitLossPercentage: data.profitLossPercentage,
+          lastUpdated: data.lastUpdated
+        } as Position;
+      } catch (err) {
+        console.error(`Error fetching price for ${data.symbol}:`, err);
+        return {
+          ...data,
+          id: doc.id,
+          currentPrice: 0,
+          totalValue: 0
+        } as Position;
+      }
+    }));
+    
     setPositions(positionsData);
 
     // Load orders
@@ -187,7 +206,6 @@ export default function PortfolioPage() {
           quantity,
           averagePrice: price,
           currentPrice: price,
-          totalValue: quantity * price,
           profitLoss: 0,
           profitLossPercentage: 0,
           lastUpdated: new Date().toISOString()
@@ -209,7 +227,6 @@ export default function PortfolioPage() {
           await updateDoc(positionDoc.ref, {
             quantity: newQuantity,
             averagePrice: newAveragePrice,
-            totalValue: newQuantity * price,
             lastUpdated: new Date().toISOString()
           });
         } else {
@@ -314,13 +331,8 @@ export default function PortfolioPage() {
                   <TableRow>
                     <TableHead>Symbol</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Value</TableHead>
-                    {/* <TableHead>Price now</TableHead> */}
-                    {/* <TableHead>Current Price</TableHead>
-                    <TableHead>Total Value</TableHead>
-                    <TableHead>P/L</TableHead>
-                    <TableHead>P/L %</TableHead>
-                    <TableHead>Actions</TableHead> */}
+                    <TableHead>Unit Price</TableHead>
+                    <TableHead>Total Price</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -328,32 +340,8 @@ export default function PortfolioPage() {
                     <TableRow key={position.symbol}>
                       <TableCell>{position.symbol}</TableCell>
                       <TableCell>{position.quantity}</TableCell>
-                      <TableCell>{0}</TableCell>
-                      {/* <TableCell>{}</TableCell> */}
-                      {/* <TableCell>{position?.averagePrice.toFixed(2)}</TableCell>
-                      <TableCell>{position?.currentPrice.toFixed(2)}</TableCell>
-                      <TableCell>{position?.totalValue.toFixed(2)}</TableCell> */}
-                      {/* <TableCell className={position?.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {position?.profitLoss.toFixed(2)}
-                      </TableCell>
-                      <TableCell className={position?.profitLossPercentage >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {position?.profitLossPercentage.toFixed(2)}%
-                      </TableCell> */}
-                      {/* <TableCell>
-                        <div className="flex gap-2">
-                          <Sheet>
-                            <SheetTrigger asChild>
-                              <Button variant="outline" size="sm">Trade</Button>
-                            </SheetTrigger>
-                            <SheetContent>
-                              <SheetHeader>
-                                <SheetTitle>Trade {position.symbol}</SheetTitle>
-                              </SheetHeader>
-                              Add trade form here
-                            </SheetContent>
-                          </Sheet>
-                        </div>
-                      </TableCell> */}
+                      <TableCell>${position.currentPrice.toFixed(2)}</TableCell>
+                      <TableCell>${position.totalValue.toFixed(2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
