@@ -11,7 +11,7 @@ const fontSans = FontSans({
 })
 
 export const metadata: Metadata = {
-  title: "INOA",
+  title: "StockP",
   description: "Investiment Tracking",
 };
 

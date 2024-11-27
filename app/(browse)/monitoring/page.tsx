@@ -102,6 +102,7 @@ export default function PortfolioPage() {
   const [error, setError] = useState<string | null>(null);
   const [monitoredStocks, setMonitoredStocks] = useState<Stock[]>([]);
   const [quantities, setQuantities] = useState<{ [symbol: string]: number }>({});
+  const [budget, setBudget] = useState<number>(0);
 
   // const [quantity, setQuantity] = useState(0);
 
@@ -124,76 +125,134 @@ export default function PortfolioPage() {
   const loadUserPortfolio = async (uid: string) => {
     const db = getFirestore(app);
     
-    // Load positions
-    const positionsRef = collection(db, 'user', uid, 'positions');
-    const positionsSnap = await getDocs(positionsRef);
-    
-    // Get current prices for all symbols
-    const positionsData = await Promise.all(positionsSnap.docs.map(async (doc) => {
-      const data = doc.data();
+    try {
+      // Carregar budget do usuário
+      const budgetRef = collection(db, 'user', uid, 'budget');
+      const budgetSnap = await getDocs(budgetRef);
       
-      // Fetch current price from Yahoo API
-      try {
-        const response = await fetch(`/api/yahoo?symbol=${data.symbol}`);
-        const quote = await response.json();
-        const currentPrice = quote.regularMarketPrice || 0;
+      if (!budgetSnap.empty) {
+        const budgetData = budgetSnap.docs[0].data();
+        setBudget(budgetData.value || 2);
+      }
+      
+      // Load positions
+      const positionsRef = collection(db, 'user', uid, 'positions');
+      const positionsSnap = await getDocs(positionsRef);
+      
+      // Get current prices for all symbols
+      const positionsData = await Promise.all(positionsSnap.docs.map(async (doc) => {
+        const data = doc.data();
+        
+        // Fetch current price from Yahoo API
+        try {
+          const response = await fetch(`/api/yahoo?symbol=${data.symbol}`);
+          const quote = await response.json();
+          const currentPrice = quote.regularMarketPrice || 0;
 
+          return {
+            id: doc.id,
+            symbol: data.symbol,
+            quantity: data.quantity,
+            averagePrice: data.averagePrice,
+            currentPrice: currentPrice,
+            totalValue: currentPrice * data.quantity, // Calculate total value
+            profitLoss: data.profitLoss,
+            profitLossPercentage: data.profitLossPercentage,
+            lastUpdated: data.lastUpdated
+          } as Position;
+        } catch (err) {
+          console.error(`Error fetching price for ${data.symbol}:`, err);
+          return {
+            ...data,
+            id: doc.id,
+            currentPrice: 0,
+            totalValue: 0
+          } as Position;
+        }
+      }));
+      
+      setPositions(positionsData);
+
+      // Load orders
+      const ordersRef = collection(db, 'users', uid, 'orders');
+      const ordersSnap = await getDocs(ordersRef);
+      const ordersData = ordersSnap.docs.map(doc => {
+        const data = doc.data();
         return {
           id: doc.id,
           symbol: data.symbol,
+          type: data.type as 'BUY' | 'SELL',
           quantity: data.quantity,
-          averagePrice: data.averagePrice,
-          currentPrice: currentPrice,
-          totalValue: currentPrice * data.quantity, // Calculate total value
-          profitLoss: data.profitLoss,
-          profitLossPercentage: data.profitLossPercentage,
-          lastUpdated: data.lastUpdated
-        } as Position;
-      } catch (err) {
-        console.error(`Error fetching price for ${data.symbol}:`, err);
-        return {
-          ...data,
-          id: doc.id,
-          currentPrice: 0,
-          totalValue: 0
-        } as Position;
-      }
-    }));
-    
-    setPositions(positionsData);
-
-    // Load orders
-    const ordersRef = collection(db, 'users', uid, 'orders');
-    const ordersSnap = await getDocs(ordersRef);
-    const ordersData = ordersSnap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        id: doc.id,
-        symbol: data.symbol,
-        type: data.type as 'BUY' | 'SELL',
-        quantity: data.quantity,
-        price: data.price,
-        status: data.status as 'PENDING' | 'EXECUTED' | 'CANCELLED',
-        timestamp: data.timestamp
-      } as Order;
-    });
-    setOrders(ordersData);
+          price: data.price,
+          status: data.status as 'PENDING' | 'EXECUTED' | 'CANCELLED',
+          timestamp: data.timestamp
+        } as Order;
+      });
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error loading budget:', error);
+      setError('Failed to load budget data');
+    }
   };
 
   const placeOrder = async (symbol: string, type: 'BUY' | 'SELL', quantity: number) => {
     if (!userId) return;
     
     const db = getFirestore(app);
-    const newOrder: Omit<Order, 'id'> = {
-      symbol,
-      type,
-      quantity,
-      price: 0,
-      status: 'PENDING',
-      timestamp: new Date().toISOString()
-    };
 
     try {
+      // Buscar preço atual da ação
+      const response = await fetch(`/api/yahoo?symbol=${symbol}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch current price');
+      }
+      const quote = await response.json();
+      const currentPrice = quote.regularMarketPrice;
+
+      // Calcular valor total da ordem
+      const totalValue = currentPrice * quantity;
+
+      // Verificar se tem budget suficiente para compra
+      if (type === 'BUY' && totalValue > budget) {
+        setError('Insufficient funds for this purchase');
+        return;
+      }
+
+      const newOrder: Omit<Order, 'id'> = {
+        symbol,
+        type,
+        quantity,
+        price: currentPrice,
+        status: 'EXECUTED',
+        timestamp: new Date().toISOString()
+      };
+
+      // Atualizar budget
+      const budgetRef = collection(db, 'user', userId, 'budget');
+      const budgetSnap = await getDocs(budgetRef);
+      
+      const newBudget = type === 'BUY' 
+        ? budget - totalValue 
+        : budget + totalValue;
+
+      if (budgetSnap.empty) {
+        // Criar novo documento de budget
+        await addDoc(budgetRef, {
+          value: newBudget,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // Atualizar documento existente
+        const docRef = budgetSnap.docs[0].ref;
+        await updateDoc(docRef, {
+          value: newBudget,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      // Atualizar estado local do budget
+      setBudget(newBudget);
+
       // Add order to Firestore
       const orderRef = await addDoc(collection(db, 'users', userId, 'orders'), newOrder);
       
@@ -207,6 +266,10 @@ export default function PortfolioPage() {
         await addDoc(positionRef, {
           symbol,
           quantity,
+          averagePrice: currentPrice,
+          currentPrice,
+          totalValue: quantity * currentPrice,
+          lastUpdated: new Date().toISOString()
         });
       } else if (!positionSnap.empty) {
         // Update existing position
@@ -218,24 +281,32 @@ export default function PortfolioPage() {
           : currentPosition.quantity - quantity;
 
         if (newQuantity > 0) {
-          // const newAveragePrice = type === 'BUY'
-          //   ? ((currentPosition.averagePrice * currentPosition.quantity) + (price * quantity)) / newQuantity
-          //   : currentPosition.averagePrice;
+          const newAveragePrice = type === 'BUY'
+            ? ((currentPosition.averagePrice * currentPosition.quantity) + (currentPrice * quantity)) / newQuantity
+            : currentPosition.averagePrice;
 
           await updateDoc(positionDoc.ref, {
             quantity: newQuantity,
+            averagePrice: newAveragePrice,
+            currentPrice,
+            totalValue: newQuantity * currentPrice,
+            lastUpdated: new Date().toISOString()
           });
-        } else {
+        } else if (newQuantity === 0) {
           // Close position if quantity becomes 0
           await deleteDoc(positionDoc.ref);
+        } else {
+          throw new Error('Cannot sell more shares than owned');
         }
+      } else if (type === 'SELL') {
+        throw new Error('Cannot sell shares you do not own');
       }
 
       // Reload portfolio
       loadUserPortfolio(userId);
     } catch (err) {
       console.error('Error placing order:', err);
-      setError('Failed to place order. Please try again.');
+      setError(err instanceof Error ? err.message : 'Failed to place order. Please try again.');
     }
   };
 
@@ -311,10 +382,53 @@ export default function PortfolioPage() {
     localStorage.setItem('monitoredStocks', JSON.stringify(updatedStocks));
   };
 
+  const updateBudget = async (newValue: number) => {
+    if (!userId) return;
+    
+    const db = getFirestore(app);
+    try {
+      const budgetRef = collection(db, 'user', userId, 'budget');
+      const budgetSnap = await getDocs(budgetRef);
+      
+      if (budgetSnap.empty) {
+        // Criar novo documento de budget
+        await addDoc(budgetRef, {
+          value: newValue,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        // Atualizar documento existente
+        const docRef = budgetSnap.docs[0].ref;
+        await updateDoc(docRef, {
+          value: newValue,
+          updatedAt: new Date().toISOString()
+        });
+      }
+      
+      setBudget(newValue);
+    } catch (error) {
+      console.error('Error updating budget:', error);
+      setError('Failed to update budget');
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-muted/40">
       <main className="flex-1 p-4 sm:p-6">
         <div className="grid gap-6">
+          {/* Budget Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Available Budget</CardTitle>
+              <CardDescription>Your current available budget for trading</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ${budget.toFixed(2)}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Portfolio Summary */}
           <Card>
             <CardHeader>
