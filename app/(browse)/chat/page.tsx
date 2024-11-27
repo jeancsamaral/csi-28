@@ -1,51 +1,10 @@
 "use client"
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkMath from 'remark-math'
 import 'katex/dist/katex.min.css'
-import OpenAI from 'openai'
-
-const apiKey = process.env.OPENAI_API_KEY
-
-export async function generateAnswer(question: string) {
-  const openai = new OpenAI({
-    apiKey: apiKey,
-    dangerouslyAllowBrowser: true
-  });
-
-  let answer = '';
-  
-  const systemPrompt = `You are an AI assistant specialized in financial markets and stock analysis.
-  Please provide clear, concise answers about market trends, stock analysis, and investment concepts.
-  Use data and technical analysis when appropriate.`;
-
-  try {
-    const completion = await openai.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: systemPrompt
-        },
-        {
-          role: "user", 
-          content: question
-        }
-      ],
-      model: "gpt-4o",
-      temperature: 0.7
-    });
-
-    answer = completion.choices[0].message.content || '';
-
-  } catch (e) {
-    console.error("Error generating answer:", e);
-    return 'Desculpe, ocorreu um erro ao tentar obter a resposta.';
-  }
-
-  return answer;
-}
 
 interface Message {
   id: number;
@@ -55,8 +14,31 @@ interface Message {
 
 const getAIResponse = async (message: string): Promise<string> => {
   try {
-    const response = await generateAnswer(message);
-    return response;
+    const response = await fetch('/api/openai', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages: [
+          {
+            role: "system",
+            content: "You are an AI assistant specialized in financial markets and stock analysis. Please provide clear, concise answers about market trends, stock analysis, and investment concepts. Use data and technical analysis when appropriate."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ]
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to get AI response');
+    }
+
+    const data = await response.json();
+    return data.content;
   } catch (error) {
     console.error('Error generating AI response:', error);
     return 'Desculpe, ocorreu um erro ao tentar obter a resposta.';
