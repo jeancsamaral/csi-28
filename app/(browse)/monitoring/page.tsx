@@ -1,12 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Plus, Edit, Trash, Settings, Store, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Sheet,
   SheetClose,
@@ -16,20 +13,13 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet"
-import sendEmail from '@/emails/mailSend';
-import { stopCoverage } from 'v8';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+} from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { app } from '@/firebase';
-import yahooFinance from 'yahoo-finance2';
-import { getFirestore, collection, addDoc, deleteDoc, query, where, getDocs, onSnapshot, updateDoc } from 'firebase/firestore';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { addDoc, collection, deleteDoc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
+import { Edit, Plus, RefreshCw, Store, Trash } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 interface Quote {
   symbol: string;
@@ -132,7 +122,7 @@ export default function PortfolioPage() {
     const db = getFirestore(app);
     
     // Load positions
-    const positionsRef = collection(db, 'users', uid, 'positions');
+    const positionsRef = collection(db, 'user', uid, 'positions');
     const positionsSnap = await getDocs(positionsRef);
     const positionsData = positionsSnap.docs.map(doc => {
       const data = doc.data();
@@ -324,12 +314,13 @@ export default function PortfolioPage() {
                   <TableRow>
                     <TableHead>Symbol</TableHead>
                     <TableHead>Quantity</TableHead>
-                    <TableHead>Avg Price</TableHead>
-                    <TableHead>Current Price</TableHead>
+                    <TableHead>Value</TableHead>
+                    {/* <TableHead>Price now</TableHead> */}
+                    {/* <TableHead>Current Price</TableHead>
                     <TableHead>Total Value</TableHead>
                     <TableHead>P/L</TableHead>
                     <TableHead>P/L %</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Actions</TableHead> */}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -337,16 +328,18 @@ export default function PortfolioPage() {
                     <TableRow key={position.symbol}>
                       <TableCell>{position.symbol}</TableCell>
                       <TableCell>{position.quantity}</TableCell>
-                      <TableCell>{position.averagePrice.toFixed(2)}</TableCell>
-                      <TableCell>{position.currentPrice.toFixed(2)}</TableCell>
-                      <TableCell>{position.totalValue.toFixed(2)}</TableCell>
-                      <TableCell className={position.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {position.profitLoss.toFixed(2)}
+                      <TableCell>{0}</TableCell>
+                      {/* <TableCell>{}</TableCell> */}
+                      {/* <TableCell>{position?.averagePrice.toFixed(2)}</TableCell>
+                      <TableCell>{position?.currentPrice.toFixed(2)}</TableCell>
+                      <TableCell>{position?.totalValue.toFixed(2)}</TableCell> */}
+                      {/* <TableCell className={position?.profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {position?.profitLoss.toFixed(2)}
                       </TableCell>
-                      <TableCell className={position.profitLossPercentage >= 0 ? 'text-green-600' : 'text-red-600'}>
-                        {position.profitLossPercentage.toFixed(2)}%
-                      </TableCell>
-                      <TableCell>
+                      <TableCell className={position?.profitLossPercentage >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        {position?.profitLossPercentage.toFixed(2)}%
+                      </TableCell> */}
+                      {/* <TableCell>
                         <div className="flex gap-2">
                           <Sheet>
                             <SheetTrigger asChild>
@@ -356,11 +349,11 @@ export default function PortfolioPage() {
                               <SheetHeader>
                                 <SheetTitle>Trade {position.symbol}</SheetTitle>
                               </SheetHeader>
-                              {/* Add trade form here */}
+                              Add trade form here
                             </SheetContent>
                           </Sheet>
                         </div>
-                      </TableCell>
+                      </TableCell> */}
                     </TableRow>
                   ))}
                 </TableBody>
