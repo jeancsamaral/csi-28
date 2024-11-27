@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { app } from '@/firebase';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, getDocs, getFirestore, query, updateDoc, where } from 'firebase/firestore';
-import { Edit, Plus, RefreshCw, Store, Trash } from 'lucide-react';
+import { Edit, Minus, Plus, RefreshCw, Store, Trash } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 interface Quote {
@@ -430,7 +430,7 @@ export default function PortfolioPage() {
                       </div>
                     </CardContent>
                     
-                    <CardFooter>
+                    <CardFooter className="flex flex-col">
                       <Button 
                         className="w-full bg-green-500 hover:bg-green-600 text-white"
                         variant="outline"
@@ -438,6 +438,14 @@ export default function PortfolioPage() {
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         BUY
+                      </Button>
+                      <Button 
+                        className="w-full bg-red-500 hover:bg-red-600 text-white mt-2"
+                        variant="outline"
+                        onClick={() => placeOrder(quote.symbol, 'SELL', quantities[quote.symbol] || 1)}
+                      >
+                        <Minus className="mr-2 h-4 w-4" />
+                        SELL
                       </Button>
                     </CardFooter>
                   </Card>
