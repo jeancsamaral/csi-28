@@ -101,6 +101,7 @@ export default function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [monitoredStocks, setMonitoredStocks] = useState<Stock[]>([]);
+  // const [quantity, setQuantity] = useState(0);
 
   // Firebase auth
   useEffect(() => {
@@ -413,14 +414,15 @@ export default function PortfolioPage() {
                         )}
                       </div>
                     </CardContent>
+                    
                     <CardFooter>
                       <Button 
-                        className="w-full"
+                        className="w-full bg-green-500 hover:bg-green-600 text-white"
                         variant="outline"
                         onClick={() => placeOrder(quote.symbol, 'BUY', 1)}
                       >
                         <Plus className="mr-2 h-4 w-4" />
-                        Add to Monitoring
+                        BUY
                       </Button>
                     </CardFooter>
                   </Card>
