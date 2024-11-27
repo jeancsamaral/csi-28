@@ -2,8 +2,12 @@
 
 import {
   default as logobranca,
-  default as logodark,
 } from "@/assets/images/money-management.png";
+
+import {
+  default as logodark,
+} from "@/assets/images/money-management-dark.png";
+
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
