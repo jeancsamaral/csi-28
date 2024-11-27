@@ -32,7 +32,7 @@ import { app } from "@/firebase";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { Edit, Plus, RefreshCw, Store, Trash } from "lucide-react";
 import React, { useEffect, useState } from "react";
-
+import TimeChart from "@/components/timechart";
 interface Quote {
   symbol: string;
   shortName?: string;
@@ -190,6 +190,8 @@ export default function Page() {
                 Enter a stock symbol to get real-time market data.
               </CardDescription>
             </CardHeader>
+            
+            
             <CardContent>
               <div className="flex gap-4 mb-6">
                 <Input
@@ -202,8 +204,19 @@ export default function Page() {
                   {loading ? "Searching..." : "Search"}
                 </Button>
               </div>
+              
 
               {error && <div className="text-red-500 mb-4">{error}</div>}
+
+              {searchResults.length > 0 && (
+                <div className="mb-6">
+                  <TimeChart
+                    symbol={searchResults[0].symbol}
+                    interval="1d"
+                    range="3mo"
+                  />
+                </div>
+              )}
 
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {searchResults.map((quote) => (
@@ -275,7 +288,9 @@ export default function Page() {
                         Add to Monitoring
                       </Button>
                     </CardFooter>
+                    
                   </Card>
+                  
                 ))}
               </div>
             </CardContent>
