@@ -1,196 +1,166 @@
-"use client";
+"use client"
+import React, { useState, useEffect } from 'react'
+import { Send } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import rehypeKatex from 'rehype-katex'
+import remarkMath from 'remark-math'
+import 'katex/dist/katex.min.css'
+import OpenAI from 'openai'
 
-import React, { useState } from 'react';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+const OPENAI_API_KEY = "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";
 
-interface StockAnalysis {
-  price?: string;
-  sma?: string;
-  ema?: string;
-  rsi?: string;
-  macd?: string;
+export async function generateAnswer(question: string) {
+  const openai = new OpenAI({
+    apiKey: OPENAI_API_KEY,
+    dangerouslyAllowBrowser: true
+  });
+
+  let answer = '';
+  
+  const systemPrompt = `You are an AI assistant specialized in financial markets and stock analysis.
+  Please provide clear, concise answers about market trends, stock analysis, and investment concepts.
+  Use data and technical analysis when appropriate.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt
+        },
+        {
+          role: "user", 
+          content: question
+        }
+      ],
+      model: "gpt-4o",
+      temperature: 0.7
+    });
+
+    answer = completion.choices[0].message.content || '';
+
+  } catch (e) {
+    console.error("Error generating answer:", e);
+    return 'Desculpe, ocorreu um erro ao tentar obter a resposta.';
+  }
+
+  return answer;
 }
 
-export default function Page() {
-  const [messages, setMessages] = useState<Array<{ role: string; content: string }>>([]);
-  const [userInput, setUserInput] = useState('');
-  const [loading, setLoading] = useState(false);
+interface Message {
+  id: number;
+  text: string;
+  sender: 'user' | 'ai';
+}
 
-  const handleAnalysis = async () => {
-    if (!userInput) return;
+const getAIResponse = async (message: string): Promise<string> => {
+  try {
+    const response = await generateAnswer(message);
+    return response;
+  } catch (error) {
+    console.error('Error generating AI response:', error);
+    return 'Desculpe, ocorreu um erro ao tentar obter a resposta.';
+  }
+}
 
-    setLoading(true);
-    try {
-      // Adicionar a mensagem do usuário ao histórico primeiro
-      const newMessages = [
-        ...messages,
-        { role: 'user', content: userInput }
-      ];
-      setMessages(newMessages);
+export default function FinanceAIChat() {
+  const [messages, setMessages] = useState<Message[]>([])
+  const [inputMessage, setInputMessage] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-      const response = await fetch('/api/openai', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: newMessages
-        }),
-      });
+  const handleSendMessage = async () => {
+    if (inputMessage.trim() === '') return
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      // Se houver uma chamada de função
-      if (data.functionCall) {
-        const { name, arguments: args } = data.functionCall;
-        let functionResponse;
-
-        try {
-          switch (name) {
-            case 'getStockPrice':
-              const priceResponse = await fetch(`/api/yahoo?symbol=${args.ticker}`);
-              const priceData = await priceResponse.json();
-              functionResponse = priceData.regularMarketPrice.toString();
-              break;
-
-            case 'calculateSMA':
-              const smaResponse = await fetch(`/api/technical?symbol=${args.ticker}&indicator=sma&window=${args.window}`);
-              const smaData = await smaResponse.json();
-              functionResponse = smaData.value.toString();
-              break;
-
-            case 'calculateEMA':
-              const emaResponse = await fetch(`/api/technical?symbol=${args.ticker}&indicator=ema&window=${args.window}`);
-              const emaData = await emaResponse.json();
-              functionResponse = emaData.value.toString();
-              break;
-
-            case 'calculateRSI':
-              const rsiResponse = await fetch(`/api/technical?symbol=${args.ticker}&indicator=rsi`);
-              const rsiData = await rsiResponse.json();
-              functionResponse = rsiData.value.toString();
-              break;
-
-            case 'calculateMACD':
-              const macdResponse = await fetch(`/api/technical?symbol=${args.ticker}&indicator=macd`);
-              const macdData = await macdResponse.json();
-              functionResponse = `MACD: ${macdData.macd.toFixed(2)}, Signal: ${macdData.signal.toFixed(2)}, Histogram: ${macdData.histogram.toFixed(2)}`;
-              break;
-
-            default:
-              throw new Error(`Unknown function: ${name}`);
-          }
-
-          // Adicionar a resposta da função ao histórico
-          setMessages(prev => [
-            ...prev,
-            { role: 'assistant', content: data.content || '' },
-            { role: 'function', content: functionResponse }
-          ]);
-
-          // Fazer uma segunda chamada à API com o resultado da função
-          const secondResponse = await fetch('/api/openai', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              messages: [
-                ...newMessages,
-                { role: 'assistant', content: data.content || '' },
-                { role: 'function', name, content: functionResponse }
-              ]
-            }),
-          });
-
-          const secondData = await secondResponse.json();
-          
-          if (secondData.content) {
-            setMessages(prev => [
-              ...prev,
-              { role: 'assistant', content: secondData.content }
-            ]);
-          }
-
-        } catch (functionError) {
-          console.error('Function execution error:', functionError);
-          setMessages(prev => [
-            ...prev,
-            { role: 'assistant', content: 'Sorry, I encountered an error while processing the data.' }
-          ]);
-        }
-      } else {
-        // Se não houver chamada de função, apenas adicione a resposta
-        setMessages(prev => [
-          ...prev,
-          { role: 'assistant', content: data.content }
-        ]);
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [
-        ...prev,
-        { role: 'assistant', content: 'Sorry, I encountered an error processing your request.' }
-      ]);
-    } finally {
-      setLoading(false);
-      setUserInput('');
+    const newMessage: Message = {
+      id: Date.now(),
+      text: inputMessage,
+      sender: 'user',
     }
-  };
+
+    setMessages([...messages, newMessage])
+    setInputMessage('')
+    setIsLoading(true)
+
+    try {
+      const aiResponse = await getAIResponse(inputMessage);
+      const aiMessage: Message = {
+        id: Date.now() + 1,
+        text: aiResponse,
+        sender: 'ai',
+      };
+      setMessages(prevMessages => [...prevMessages, aiMessage]);
+    } catch (error) {
+      console.error('Erro ao enviar mensagem:', error);
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>StockSage: Stock Analysis Assistant</CardTitle>
-          <CardDescription>
-            Ask questions about stocks and get technical analysis
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="Ask about a stock..."
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAnalysis()}
-              />
-              <Button onClick={handleAnalysis} disabled={loading}>
-                {loading ? 'Analyzing...' : 'Ask'}
-              </Button>
-            </div>
-            
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`p-4 rounded-lg ${
-                    message.role === 'user' 
-                      ? 'bg-primary/10 ml-auto' 
-                      : message.role === 'function'
-                      ? 'bg-secondary/20'
-                      : 'bg-secondary/10'
-                  }`}
-                >
-                  <p className="text-sm font-medium">{message.role}</p>
-                  <p>{message.content}</p>
-                </div>
-              ))}
+    <div className="h-[600px] flex items-center justify-center py-2 px-2 sm:py-4 sm:px-4 lg:px-8 relative">
+      <div className="h-full max-w-4xl w-full mx-auto bg-blue-900 bg-opacity-5 rounded-lg shadow-lg overflow-hidden flex flex-col backdrop-blur-md z-10 border border-blue-500 border-opacity-30">
+        <div className="bg-blue-800 bg-opacity-10 px-3 sm:px-6 py-3 flex justify-between items-center backdrop-blur-lg">
+          <div className="flex items-center">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-blue-100">Financial Assistant</h2>
+              <p className="text-xs sm:text-sm text-blue-200">Your AI Financial Advisor</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 custom-scrollbar">
+          <div className="bg-blue-800 bg-opacity-20 p-3 sm:p-4 rounded-lg backdrop-blur-md mb-4 sm:mb-6">
+            <p className="text-blue-100 text-sm sm:text-base">
+              Hello! I'm your AI financial assistant. How can I help you with market analysis or investment decisions today?
+            </p>
+          </div>
+          
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl ${
+                  message.sender === 'user'
+                    ? 'bg-blue-600 bg-opacity-50 text-white rounded-tr-sm'
+                    : 'bg-blue-800 bg-opacity-50 text-blue-100 rounded-tl-sm'
+                }`}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  className="text-sm sm:text-base"
+                >
+                  {message.text}
+                </ReactMarkdown>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-blue-800 bg-opacity-20 p-2 sm:p-4 backdrop-blur-lg">
+          <div className="flex space-x-2 max-w-3xl mx-auto">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              placeholder="Ask about stocks, market trends, or investment strategies..."
+              className="flex-grow bg-blue-700 bg-opacity-50 text-sm sm:text-base text-blue-100 placeholder-blue-300 rounded-full py-2 sm:py-3 px-4 sm:px-6 focus:outline-none focus:ring-2 focus:ring-blue-400 backdrop-blur-lg"
+            />
+            <button
+              onClick={handleSendMessage}
+              disabled={isLoading}
+              className="bg-blue-600 hover:bg-blue-500 text-white rounded-full p-2 sm:p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all duration-300 ease-in-out disabled:opacity-50"
+            >
+              <Send className="w-5 h-5 sm:w-6 sm:h-6" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
+
+

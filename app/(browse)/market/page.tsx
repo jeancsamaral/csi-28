@@ -365,12 +365,7 @@ function PortfolioOverview({ stocks, onDelete, onAddStock, userMail, setUserMail
           <div className="grid gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               <Sheet>
-                <SheetTrigger asChild>
-                  <Button variant="outline">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Asset
-                  </Button>
-                </SheetTrigger>
+                
                 <SheetContent>
                   <SheetHeader>
                     <SheetTitle>Asset details</SheetTitle>
